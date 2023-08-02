@@ -16,7 +16,7 @@ public class ButtonItem : MonoBehaviour
 
     private void OnButtonClicked()
     {
-        AppManager.instance.PressedItemButton(index,this);
+        MenuManager.instance.PressedItemButton(index,this);
     }
 
     public void EnableSelectedUI() {
