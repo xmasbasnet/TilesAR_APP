@@ -98,28 +98,25 @@ public class ARManager : MonoBehaviour
             timerToScan -= Time.deltaTime;
         }
 
-        if (!createdPlane)
+        Vector2 screenCenter = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
+        Ray ray = Camera.main.ScreenPointToRay(screenCenter);
+        if (arRaycastManager.Raycast(ray, hits, UnityEngine.XR.ARSubsystems.TrackableType.AllTypes))
         {
-            Vector2 screenCenter = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
-            Ray ray = Camera.main.ScreenPointToRay(screenCenter);
-            if (arRaycastManager.Raycast(ray, hits, UnityEngine.XR.ARSubsystems.TrackableType.PlaneWithinPolygon))
+            // Get the hit position and move the object there.
+
+            currentPoint = hits[0].pose.position;
+
+
+            if (Vector3.Distance(currentPoint, points[0]) < 0.06f)
             {
-                // Get the hit position and move the object there.
-
-                currentPoint = hits[0].pose.position;
-
-
-                if (Vector3.Distance(currentPoint, points[0]) < 0.06f)
-                {
-                    //addPointButton.interactable = false;
-                    currentPoint = points[0];
-                    //print("Too Close!");
-
-                }
-
-                pointIndicator.transform.position = currentPoint + pointIndicator.transform.up * 0.01f;
+                //addPointButton.interactable = false;
+                currentPoint = points[0];
+                //print("Too Close!");
 
             }
+
+            pointIndicator.transform.position = currentPoint + pointIndicator.transform.up * 0.01f;
+
         }
     }
 
