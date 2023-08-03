@@ -22,6 +22,8 @@ public class LoadingManager : MonoBehaviour
         }
     }
 
+    public int selectedTexIndex = 0;
+
     private void Awake()
     {
         Application.targetFrameRate = 60;

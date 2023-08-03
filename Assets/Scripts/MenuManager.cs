@@ -83,7 +83,7 @@ public class MenuManager : MonoBehaviour
         {
             GameObject go = Instantiate(TilesCard, ItemsParent);
             go.transform.GetChild(0).GetChild(0).GetComponent<Image>().sprite = tilesContainers.tileTextures[i];
-            go.transform.GetComponent<ButtonItem>().SetButton(i);
+            go.transform.GetComponent<ButtonItem>().SetButton(i,true);
         }
     }
 
@@ -91,7 +91,7 @@ public class MenuManager : MonoBehaviour
     public void PressedItemButton(int i,ButtonItem _buttonItem) {
         selectedTextureIndex = i;
         print("Pressed " + i);
-
+        LoadingManager.instance.selectedTexIndex = i;
         if (buttonItem!=null)
         {
             buttonItem.DisableSelectedUI();

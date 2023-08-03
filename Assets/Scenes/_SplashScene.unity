@@ -627,6 +627,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5adb4216858174a979315853174b6c85, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  selectedTexIndex: 0
 --- !u!1 &1683093001490574925
 GameObject:
   m_ObjectHideFlags: 0
@@ -1814,7 +1815,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!222 &6481932195473305105
 CanvasRenderer:
   m_ObjectHideFlags: 0
