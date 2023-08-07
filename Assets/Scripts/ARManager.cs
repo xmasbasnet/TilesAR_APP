@@ -7,6 +7,8 @@ using mattatz.Triangulation2DSystem;
 using mattatz.Utils;
 using mattatz.Triangulation2DSystem.Example;
 using UnityEngine.UI;
+using TMPro;
+
 
 public class ARManager : MonoBehaviour
 {
@@ -15,8 +17,10 @@ public class ARManager : MonoBehaviour
 
     [SerializeField] ARPlaneManager planeManager;
     [SerializeField] ARRaycastManager arRaycastManager;
+    [SerializeField] Camera arCamera;
+
     bool isPlaneDetected = false;
-    bool trackPoints = false;
+    //bool trackPoints = false;
     bool createdPlane = false;
     [SerializeField] GameObject scanFloorUIGameobject;
     [SerializeField] GameObject pointIndicator;
@@ -28,7 +32,6 @@ public class ARManager : MonoBehaviour
 
     public List<Vector3> points = new List<Vector3>(); // List of points in the same plane
     public Material planeMaterial; // Material to assign to the plane
-    private List<ARRaycastHit> hits = new List<ARRaycastHit>(); // Add this line to declare the 'hits' array.
 
     float timerToScan = 5;
 
@@ -42,22 +45,19 @@ public class ARManager : MonoBehaviour
 
     [SerializeField] GameObject ResetButton;
 
+    [SerializeField] GameObject ScanSelection;
+    [SerializeField] TextMeshProUGUI scanTxt;
+
+    bool isScanFloor = true;
 
     public static ARManager instance
     {
         get
         {
-            // If the instance is null, try to find it in the scene
             if (_instance == null)
             {
                 _instance = FindObjectOfType<ARManager>();
 
-                // If it's still null, create a new GameObject and attach the script to it
-                //if (_instance == null)
-                //{
-                //    GameObject singletonObject = new GameObject("AppManager");
-                //    _instance = singletonObject.AddComponent<AppManager>();
-                //}
             }
 
             return _instance;
@@ -67,179 +67,171 @@ public class ARManager : MonoBehaviour
 
     private void Awake()
     {
+        
         planeMaterial.mainTexture = tiles.tileTextures[LoadingManager.instance.selectedTexIndex].texture;
-        print("Assigned tex 1");
-
+        planeManager.enabled = false;
+        ScanSelection.SetActive(true);
+        scanFloorUIGameobject.SetActive(false);
 
         SpawnTilesItemsUI();
-        //List<Vector2> p = new List<Vector2>();
-        //p.Clear();
-        //for (int i = 0; i < points.Count; i++)
-        //{
-        //    p.Add(ConvertV3toV2(points[i]));
-        //}
-        //CreatePlane(p);
-
-        print("Awake 1");
+       
         Reset();
 
+        
 
+    }
+
+
+    bool startAddingPoints = false;
+
+    private void Update()
+    {
+        if (isPlaneDetected)
+        {
+            if (timerToScan > 0)
+            {
+                timerToScan -= Time.deltaTime;
+            }
+            else {
+                if (!startAddingPoints)
+                {
+                    startAddingPoints = true;
+                    StartAddingPoints();
+                }
+                
+                
+            }
+        }
        
 
-        
+        RayToPlane();
 
 
     }
 
-    private void Update()
-    {
-        if (timerToScan>0)
+    bool startRaycast = false;
+    void RayToPlane() {
+        if (!startRaycast)
         {
-            timerToScan -= Time.deltaTime;
+            return;
         }
+        //Vector2 screenCenter = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
+        Ray ray = arCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
 
-        Vector2 screenCenter = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
-        Ray ray = Camera.main.ScreenPointToRay(screenCenter);
-        if (arRaycastManager.Raycast(ray, hits, UnityEngine.XR.ARSubsystems.TrackableType.AllTypes))
+        List<ARRaycastHit> hits = new List<ARRaycastHit>();
+        if (arRaycastManager.Raycast(ray, hits, TrackableType.Planes))
         {
             // Get the hit position and move the object there.
+            currentPoint = Vector3.Lerp(currentPoint, hits[0].pose.position, 0.5f);
 
-            currentPoint = hits[0].pose.position;
+            pointIndicator.transform.position = currentPoint;
 
+        }
+    }
 
-            if (Vector3.Distance(currentPoint, points[0]) < 0.06f)
-            {
-                //addPointButton.interactable = false;
-                currentPoint = points[0];
-                //print("Too Close!");
+    void StartAddingPoints() {
+        startRaycast = true;
+        addPointButton.gameObject.SetActive(true);
+        pointIndicator.SetActive(true);
+        pointIndicator.transform.rotation = Quaternion.Euler(isScanFloor? 90:0, 0, 0);
+        DisablePlaneVisuals();
+    }
 
-            }
-
-            pointIndicator.transform.position = currentPoint + pointIndicator.transform.up * 0.01f;
-
+    public void DisablePlaneVisuals()
+    {
+        foreach (var plane in planeManager.trackables)
+        {
+            plane.GetComponent<ARPlaneMeshVisualizer>().enabled = false;
         }
     }
 
     void OnPlanesChanged(ARPlanesChangedEventArgs args)
     {
-        foreach (var addedPlane in args.added)
+        if (args.added.Count>0)
         {
-            if (timerToScan <= 0)
+            if (!isPlaneDetected)
             {
-                if (scanFloorUIGameobject.activeInHierarchy)
-                {
-                    scanFloorUIGameobject.SetActive(false);
-                    if (!isPlaneDetected)
-                    {
-                        //planeManager.SetTrackablesActive(false);
-                        isPlaneDetected = true;
-                        trackPoints = true;
-                        addPointButton.gameObject.SetActive(true);
-
-
-                    }
-                }
-
-
-            }
-            if (trackPoints)
-            {
-                foreach (ARPlane plane in planeManager.trackables)
-                {
-                    plane.GetComponent<ARPlaneMeshVisualizer>().enabled = false;
-                }
-            }
-
-        }
-
-        foreach (var updatedPlane in args.updated)
-        {
-            if (timerToScan<=0)
-            {
-                if (scanFloorUIGameobject.activeInHierarchy)
-                {
-                    scanFloorUIGameobject.SetActive(false);
-                    if (!isPlaneDetected)
-                    {
-                        //planeManager.SetTrackablesActive(false);
-                        isPlaneDetected = true;
-                        trackPoints = true;
-                        addPointButton.gameObject.SetActive(true);
-                        
-
-                    }
-                }
-
+                isPlaneDetected = true;
+                scanFloorUIGameobject.SetActive(false);
                 
             }
-            if (trackPoints)
-            {
-                foreach (ARPlane plane in planeManager.trackables)
-                {
-                    plane.GetComponent<ARPlaneMeshVisualizer>().enabled = false;
-                }
-            }
-            
-
+           
         }
 
-        
-
-        //foreach (var removedPlane in args.removed)
-        //{
-        //    // Plane removed, do something when a detected plane is removed (e.g., clean up instantiated objects).
-        //}
     }
 
     public void AddPoints() {
+        points.Add(currentPoint);
+        Instantiate(point, currentPoint, Quaternion.Euler(isScanFloor ? 90:0, 0, 0), pointsParentTransform);
+
         if (points.Count>3)
         {
-            if (Vector3.Distance(points[0],currentPoint)<0.05 )
+
+            if (IsShapeClosed())
             {
-                for (int i = 0; i < pointsParentTransform.childCount; i++)
-                {
-                    Destroy(pointsParentTransform.GetChild(i).gameObject);
-                }
-                print("Points Complete");
-                trackPoints = false;
+                print("Points Complete, Shape is closed!");
+
+                RemovePointDots();
 
                 List<Vector2> p = new List<Vector2>();
 
                 for (int i = 0; i < points.Count; i++)
                 {
-                    p.Add(ConvertV3toV2(points[i]));
+                    if (isScanFloor)
+                    {
+                        p.Add(ConvertV3toV2(points[i]));
+
+                    }
+                    else {
+                        p.Add(new Vector2(points[i].x, points[i].y));
+                    }
                 }
 
                 CreatePlane(p);
                 return;
             }
+
         }
 
-        points.Add(currentPoint);
-        Instantiate(point, currentPoint, (Quaternion.Euler(90,0,0)) , pointsParentTransform);
 
+    }
+    float closeShapeThreshold = 0.05f;
+    private bool IsShapeClosed()
+    {
+        // Check if the number of points is sufficient to form a closed shape.
+        if (points.Count < 3)
+            return false;
 
+        // Get the first and last point in the list.
+        Vector2 firstPoint = points[0];
+        Vector2 lastPoint = points[points.Count - 1];
+
+        // Calculate the distance between the first and last point.
+        float distance = Vector2.Distance(firstPoint, lastPoint);
+
+        // Check if the distance is within the threshold to consider the shape as closed.
+        return distance < closeShapeThreshold;
+    }
+
+    void RemovePointDots() {
+        for (int i = 0; i < pointsParentTransform.childCount; i++)
+        {
+            Destroy(pointsParentTransform.GetChild(i).gameObject);
+        }
     }
 
 
     public void Reset() {
-        pointIndicator.SetActive(true);
+        pointIndicator.SetActive(false);
         addPointButton.gameObject.SetActive(false);
         planeManager.planesChanged += OnPlanesChanged;
         points.Clear();
-        for (int i = 0; i < pointsParentTransform.childCount; i++)
-        {
-            Destroy(pointsParentTransform.GetChild(0).gameObject);
-        }
-        foreach (ARPlane plane in planeManager.trackables)
-        {
-            plane.gameObject.SetActive(false);
-        }
+        RemovePointDots();
+        
         timerToScan = 5;
         print("Untill Time is reset");
 
         isPlaneDetected = false;
-        trackPoints = false;
         createdPlane = false;
         if (planeObject != null)
         {
@@ -251,15 +243,21 @@ public class ARManager : MonoBehaviour
         ResetButton.SetActive(false);
         horScroll.SetActive(false);
     }
+
+    #region Plane Mesh Creation
     GameObject planeObject;
     void CreatePlane(List<Vector2> points)
     {
+        DisablePlaneVisuals();
 
-        points = setPivotToFirst(points);
+        if (isScanFloor)
+        {
+            points = setPivotToFirst(points);
+
+        }
 
         Polygon2D polygon = Polygon2D.Contour(points.ToArray());
 
-        Debug.Log("Polygon Count : " + polygon.Vertices.Length);
 
         var vertices = polygon.Vertices;
         if (vertices.Length < 3) return; // error
@@ -285,9 +283,14 @@ public class ARManager : MonoBehaviour
         // Assign a default material to the MeshRenderer component
         meshRenderer.material = planeMaterial;
 
-        planeObject.transform.position = this.points[0];
+        
 
-        planeObject.transform.rotation = Quaternion.Euler(90, 0, 0);
+        if (isScanFloor)
+        {
+            planeObject.transform.position = this.points[0];
+            planeObject.transform.rotation = Quaternion.Euler(90, 0, 0);
+
+        }
 
         foreach (ARPlane plane in planeManager.trackables)
         {
@@ -295,12 +298,12 @@ public class ARManager : MonoBehaviour
         }
         planeManager.enabled = false;
         createdPlane = true;
-        EnableTextSelect();
+        EnableHorizontalTextureSelectionUI();
 
 
     }
 
-    void EnableTextSelect() {
+    void EnableHorizontalTextureSelectionUI() {
         pointIndicator.SetActive(false);
 
         horScroll.SetActive(true);
@@ -331,6 +334,8 @@ public class ARManager : MonoBehaviour
 
         return offsetPoints;
     }
+
+    #endregion
 
     void SpawnTilesItemsUI()
     {
@@ -365,6 +370,31 @@ public class ARManager : MonoBehaviour
 
     public void RestartLevel() {
         LoadingManager.instance.LoadSceneAsync(1);
+    }
+
+    public void ScanWall() {
+        planeManager.requestedDetectionMode = PlaneDetectionMode.Vertical;
+        isScanFloor = false;
+
+        scanTxt.text = "Scan Wall";
+        startPlaneDetection();
+
+    }
+
+    public void ScanFloor() {
+        planeManager.requestedDetectionMode = PlaneDetectionMode.Horizontal;
+        isScanFloor = true;
+        scanTxt.text = "Scan Floor";
+
+        startPlaneDetection();
+    }
+
+    void startPlaneDetection() {
+        planeManager.enabled = true;
+
+        scanFloorUIGameobject.SetActive(true);
+        ScanSelection.SetActive(false);
+
     }
 
 }
